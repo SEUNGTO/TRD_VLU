@@ -10,7 +10,7 @@ DT[, ma10 := TTR::runMean(trd_vl, n = 10), by = upjong_code]
 
 upjong_list <- c(201, 205, 230, 221, 42)
 
-upjong[upjong_code %in% upjong_list, ]
+# upjong[upjong_code %in% upjong_list, ]
 
 bs_plot <- ggplot(DT) + 
       geom_line(aes(x = date, 
