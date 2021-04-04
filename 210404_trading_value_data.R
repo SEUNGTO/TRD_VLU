@@ -1,5 +1,5 @@
 pacman::p_load("data.table", "lubridate", "TTR", "BBquantR", "ggplot2")
-
+org_path <- getwd()
 path <- "D:/R/Data/stock_price_by_min"
 setwd(path)
 
@@ -43,8 +43,7 @@ for(i in 1:length(file_list)){
       cat("\r", date, "|", i, "                              ")
 }
 
-fwrite(x = result, 
-       file = "C:/Users/Shin Seung Yeop/Documents/[R]TradeBot/data/upjong_trading_value.txt")
+setwd(org_path)
 
-print("hello")
-print("This is a test script")
+fwrite(x = result, 
+       file = "./data/upjong_trading_value.txt")
