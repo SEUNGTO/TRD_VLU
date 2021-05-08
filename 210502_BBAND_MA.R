@@ -127,7 +127,111 @@ DT[code == '302550' &
          (avg_ratio_120_60 == 0.95 | avg_ratio_120_60 == 0.98) & 
          (avg_ratio_60_20 == 0.95 | avg_ratio_60_20 == 0.98) & 
          (avg_ratio_20_5 == 0.99 | avg_ratio_20_5 == 1.00), 
-   mean(y)] # 0.03175362
+   mean(lead(y), na.rm = TRUE)] # 0.03175362
 
 
 # 가장 많은 빈도수를 골라보자!
+
+# code_temp in code_list
+temp <- DT[is.na(avg_ratio_120_60) != TRUE, ]
+tempDT <- data.table()
+
+for (my_code in code_list){
+      temp120 <- temp[code == my_code, .N, by = avg_ratio_120_60][order(N, decreasing = TRUE), ][1:2, ]
+      temp60 <- temp[code == my_code, .N, by = avg_ratio_60_20][order(N, decreasing = TRUE), ][1:2, ]
+      temp20 <- temp[code == my_code, .N, by = avg_ratio_20_5][order(N, decreasing = TRUE), ][1:2, ]
+      temp_result <- cbind(temp120, temp60, temp20)
+      temp_result[, code := my_code]
+      tempDT <- rbind(tempDT, temp_result)
+      }
+
+DT[, leady := lead(y), by = code]
+result_perf <- data.table()
+
+for (my_code in code_list){
+      ref <- tempDT[code == my_code, .(avg_ratio_120_60, avg_ratio_60_20, avg_ratio_20_5)]
+      perf <- DT[code == my_code &
+               (avg_ratio_120_60 == as.numeric(ref[1,1]) | avg_ratio_120_60 == as.numeric(ref[2,1])) & 
+               (avg_ratio_60_20 == as.numeric(ref[1,2]) | avg_ratio_60_20 == as.numeric(ref[2,2])) & 
+               (avg_ratio_20_5 == as.numeric(ref[1,3]) | avg_ratio_20_5 == as.numeric(ref[2,3])), 
+         mean(leady)]
+      n <- DT[code == my_code &
+                    (avg_ratio_120_60 == as.numeric(ref[1,1]) | avg_ratio_120_60 == as.numeric(ref[2,1])) & 
+                    (avg_ratio_60_20 == as.numeric(ref[1,2]) | avg_ratio_60_20 == as.numeric(ref[2,2])) & 
+                    (avg_ratio_20_5 == as.numeric(ref[1,3]) | avg_ratio_20_5 == as.numeric(ref[2,3])), 
+              .N]
+      
+      perf <- data.table(perf, my_code, n)
+      result_perf <- rbind(result_perf, perf)
+      
+      
+}
+View(result_perf)
+result_perf[perf > 0.01, ][order(perf, decreasing = TRUE), ]
+result <- result_perf[, perf := as.numeric(perf)][n > 10 & perf > 0.01, ]
+
+final_code_list <- result[, code]
+
+
+setnames(result, old = 'my_code', new = 'code')
+
+final_result <- tempDT[code %in% final_code_list, 
+                       .(code, avg_ratio_120_60, avg_ratio_60_20,avg_ratio_20_5)]
+
+fwrite(final_result, 'final_result.txt')
+
+# 2021년 5월 9일 / 프로젝트 3일차 ----
+model <- fread('final_result.txt', colClasses = c('character', rep('numeric', time = 3)))
+code_list <- model[, code]
+ticker <- BBquantR::crawling_ticker()
+ticker <- ticker[code %in% code_list, ]
+DT_daily <- BBquantR::crawling_daily_price(ticker, days = 500)
+
+DT_daily[, ma120 := TTR::runMean(end.prc, n = 120), by = code]
+DT_daily[, ma60 := TTR::runMean(end.prc, n = 60), by = code]
+DT_daily[, ma20 := TTR::runMean(end.prc, n = 20), by = code]
+DT_daily[, ma5 := TTR::runMean(end.prc, n = 5), by = code]
+
+
+DT_daily[, ratio_120_60 := ma60/ma120, by = code]
+DT_daily[, ratio_60_20 := ma20/ma60, by = code]
+DT_daily[, ratio_20_5 := ma5/ma20, by = code]
+
+
+
+# 최근 10일 비율 / 소수점 둘째자리까지 표기
+DT_daily[, avg_ratio_120_60 := round(TTR::runMean(ratio_60_20, n = 10), 2), by = code]
+DT_daily[, avg_ratio_60_20 := round(TTR::runMean(ratio_60_20, n = 10), 2), by = code]
+DT_daily[, avg_ratio_20_5 := round(TTR::runMean(ratio_20_5, n = 10), 2), by = code]
+
+DT_daily[, y := log(end.prc) - log(init.prc)]
+DT_daily[, perf := lead(y), by = code]
+
+ma_result <- data.table()
+
+for (my_code in unique(code_list)){
+   ref <- model[code == my_code, ]
+   temp <- DT_daily[code == my_code, ]
+   temp[, test := ifelse((avg_ratio_120_60 == as.numeric(ref[1,2]) | 
+                             avg_ratio_120_60 == as.numeric(ref[2,2])) & 
+                            (avg_ratio_60_20 == as.numeric(ref[1,3]) | 
+                                avg_ratio_60_20 == as.numeric(ref[2,3])) & 
+                            (avg_ratio_20_5 == as.numeric(ref[1,4]) | 
+                                avg_ratio_20_5 == as.numeric(ref[2,4])) == 1, 1, 0)]
+   temp_result <- temp[test == 1, ]
+   ma_result <- rbind(ma_result, temp_result)
+
+}
+ma_result[, mean(perf), by = code]
+ma_result <- ma_result[quant != 0, ]
+
+
+result_by_date <- ma_result[, mean(perf), by = date]
+result_by_date <- result_by_date[, v := V1 + 1][order(date), ]
+prod(result_by_date[,v], na.rm = TRUE)
+
+result_by_date[, date := lubridate::ymd(date)]
+result_by_date %>% ggplot()+
+   geom_line(aes(x = date, y = v))
+# 결론, 꽤 쓸만할 수 있겠다.
+# 전략중 하나로 삼을만하다.
