@@ -233,5 +233,13 @@ prod(result_by_date[,v], na.rm = TRUE)
 result_by_date[, date := lubridate::ymd(date)]
 result_by_date %>% ggplot()+
    geom_line(aes(x = date, y = v))
+
+result_by_date[, year := year(date)]
+prod(result_by_date[year == 2019, v], na.rm = TRUE) # 2.29배 : 수익률 129.37%
+prod(result_by_date[year == 2020, v], na.rm = TRUE) # 7.72배 : 수익률 672.16%
+prod(result_by_date[year == 2021, v], na.rm = TRUE) # 0.84배 : 수익률 -15.34%
+
 # 결론, 꽤 쓸만할 수 있겠다.
 # 전략중 하나로 삼을만하다.
+
+### git을 하자
