@@ -185,7 +185,7 @@ model <- fread('final_result.txt', colClasses = c('character', rep('numeric', ti
 code_list <- model[, code]
 ticker <- BBquantR::crawling_ticker()
 ticker <- ticker[code %in% code_list, ]
-DT_daily <- BBquantR::crawling_daily_price(ticker, days = 500)
+DT_daily <- BBquantR::crawling_daily_price(ticker, days = 2000)
 
 DT_daily[, ma120 := TTR::runMean(end.prc, n = 120), by = code]
 DT_daily[, ma60 := TTR::runMean(end.prc, n = 60), by = code]
@@ -222,24 +222,38 @@ for (my_code in unique(code_list)){
    ma_result <- rbind(ma_result, temp_result)
 
 }
-ma_result[, mean(perf), by = code]
 ma_result <- ma_result[quant != 0, ]
-
-
+ma_result <- ma_result[!is.infinite(perf), ]
 result_by_date <- ma_result[, mean(perf), by = date]
 result_by_date <- result_by_date[, v := V1 + 1][order(date), ]
-prod(result_by_date[,v], na.rm = TRUE)
 
-result_by_date[, date := lubridate::ymd(date)]
-result_by_date %>% ggplot()+
-   geom_line(aes(x = date, y = v))
-
+result_by_date[, date := ymd(date)]
 result_by_date[, year := year(date)]
-prod(result_by_date[year == 2019, v], na.rm = TRUE) # 2.29배 : 수익률 129.37%
-prod(result_by_date[year == 2020, v], na.rm = TRUE) # 7.72배 : 수익률 672.16%
-prod(result_by_date[year == 2021, v], na.rm = TRUE) # 0.84배 : 수익률 -15.34%
+result_by_date[, .N, by = year]
+
+year <- result_by_date[, 'year'] %>% unique()
+profit <- lapply(year[, year], function(x){
+   round((prod(result_by_date[year == x, v], na.rm = TRUE) - 1) * 100, 2)
+   }) %>% 
+   unlist() %>% 
+   data.table()
+
+
+colnames(profit) <- 'profit'
+performance <- cbind(profit, year)
+performance <- performance[result_by_date[, .N, by = year], on = .(year = year)]
+
+performance
+prod(result_by_date[,v], na.rm = TRUE) # 94배?
+
+# result_by_date[, date := lubridate::ymd(date)]
+# result_by_date %>% ggplot()+
+#    geom_line(aes(x = date, y = v))
+# 
+# result_by_date[, year := year(date)]
+# prod(result_by_date[year == 2019, v], na.rm = TRUE) # 2.29배 : 수익률 129.37%
+# prod(result_by_date[year == 2020, v], na.rm = TRUE) # 7.72배 : 수익률 672.16%
+# prod(result_by_date[year == 2021, v], na.rm = TRUE) # 0.84배 : 수익률 -15.34%
 
 # 결론, 꽤 쓸만할 수 있겠다.
 # 전략중 하나로 삼을만하다.
-
-### git을 하자
