@@ -253,3 +253,7 @@ result_by_date %>% ggplot()+
    geom_vline(aes(xintercept = ymd('2019-01-01'), color = 'blue')) + 
    geom_vline(aes(xintercept = ymd('2020-01-01'), color = 'blue')) + 
    geom_vline(aes(xintercept = ymd('2021-01-01'), color = 'blue'))
+
+
+# 현재까지 결과를 다시 잘 정리해보자.
+# 다만 MA의 방향성은 아직 활용하지 않았다,
