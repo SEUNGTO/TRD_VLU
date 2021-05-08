@@ -169,16 +169,12 @@ for (my_code in code_list){
 View(result_perf)
 result_perf[perf > 0.01, ][order(perf, decreasing = TRUE), ]
 result <- result_perf[, perf := as.numeric(perf)][n > 10 & perf > 0.01, ]
-
 final_code_list <- result[, code]
-
-
 setnames(result, old = 'my_code', new = 'code')
-
 final_result <- tempDT[code %in% final_code_list, 
                        .(code, avg_ratio_120_60, avg_ratio_60_20,avg_ratio_20_5)]
-
 fwrite(final_result, 'final_result.txt')
+
 
 # 2021년 5월 9일 / 프로젝트 3일차 ----
 model <- fread('final_result.txt', colClasses = c('character', rep('numeric', time = 3)))
